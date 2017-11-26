@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:orientation="vertical" >
@@ -15,7 +16,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="12dp"
-            android:text="Connect" />
+            android:text="Connect"
+            android:textAppearance="@android:style/TextAppearance.Material.Button" />
     </LinearLayout>
 
     <LinearLayout
@@ -50,11 +52,9 @@
             <ListView
                 android:id="@+id/listMessage"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_above="@+id/sendButton"
-                android:layout_alignParentLeft="true"
-                android:layout_alignParentTop="true" >
-            </ListView>
+                android:layout_height="match_parent"
+                android:layout_above="@+id/startButton"
+                android:layout_alignParentStart="true"></ListView>
 
             <Button
                 android:id="@+id/sendButton"
@@ -63,7 +63,38 @@
                 android:layout_alignParentBottom="true"
                 android:layout_alignParentRight="true"
                 android:enabled="false"
-                android:text="Send" />
+                android:text="Send"
+                android:textAppearance="@android:style/TextAppearance.Material.Button" />
+
+            <Button
+                android:id="@+id/startButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_above="@+id/sendButton"
+                android:layout_alignParentStart="true"
+                android:layout_marginStart="11dp"
+                android:text="Start"
+                android:textAppearance="@android:style/TextAppearance.Material.Button" />
+
+            <Button
+                android:id="@+id/stopButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignTop="@+id/startButton"
+                android:layout_marginStart="21dp"
+                android:layout_toEndOf="@+id/startButton"
+                android:text="Stop"
+                android:textAppearance="@android:style/TextAppearance.Material.Button" />
+
+            <Button
+                android:id="@+id/locButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignTop="@+id/stopButton"
+                android:layout_marginStart="25dp"
+                android:layout_toEndOf="@+id/stopButton"
+                android:text="Location"
+                android:textAppearance="@android:style/TextAppearance.Material.Button" />
 
         </RelativeLayout>
     </LinearLayout>

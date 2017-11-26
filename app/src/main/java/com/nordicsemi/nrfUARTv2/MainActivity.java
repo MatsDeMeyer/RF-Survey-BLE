@@ -114,8 +114,6 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             return;
         }
 
-
-
         int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
         if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
@@ -124,7 +122,6 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                 requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, 1);
             }
         } else {
-            Toast.makeText(this, "Location permissions already granted", Toast.LENGTH_SHORT).show();
             mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         }
 
@@ -137,6 +134,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         edtMessage = (EditText) findViewById(R.id.sendText);
         btnStart = (Button) findViewById(R.id.startButton);
         btnStop = (Button) findViewById(R.id.stopButton);
+        btnStart.setEnabled(false);
+        btnStop.setEnabled(false);
         btnLocation = (Button) findViewById(R.id.locButton);
         service_init();
 
@@ -294,6 +293,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                              btnConnectDisconnect.setText("Disconnect");
                              edtMessage.setEnabled(true);
                              btnSend.setEnabled(true);
+                             btnStart.setEnabled(true);
+                             btnStop.setEnabled(true);
                              ((TextView) findViewById(R.id.deviceName)).setText(mDevice.getName()+ " - ready");
                              listAdapter.add("["+currentDateTimeString+"] Connected to: "+ mDevice.getName());
                         	 	messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
@@ -311,6 +312,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                              btnConnectDisconnect.setText("Connect");
                              edtMessage.setEnabled(false);
                              btnSend.setEnabled(false);
+                             btnStart.setEnabled(false);
+                             btnStop.setEnabled(false);
                              ((TextView) findViewById(R.id.deviceName)).setText("Not Connected");
                              listAdapter.add("["+currentDateTimeString+"] Disconnected to: "+ mDevice.getName());
                              mState = UART_PROFILE_DISCONNECTED;
