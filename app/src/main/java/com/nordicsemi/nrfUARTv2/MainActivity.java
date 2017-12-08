@@ -142,11 +142,11 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                 mService.writeRXCharacteristic(ALP);
                 //Update the log with time stamp
                 String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                listAdapter.add("[" + currentDateTimeString + "] ALP: " + Arrays.toString(ALP));
+                listAdapter.add("[" + currentDateTimeString + "] ALP: " + byteArrayToHexString(ALP));
                 messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
                 Log.d("Handlers", "Called on main thread");
 
-                ALPhandler.postDelayed(this, 1000);
+                ALPhandler.postDelayed(this, 10000);
 
 
             }
@@ -353,16 +353,19 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             if (action.equals(UartService.ACTION_GATT_SERVICES_DISCOVERED)) {
                 mService.enableTXNotification();
             }
-            //*********************//
+            //*********************
+            // Handler for incoming BLE data (ALP Command)
             if (action.equals(UartService.ACTION_DATA_AVAILABLE)) {
 
                 final byte[] txValue = intent.getByteArrayExtra(UartService.EXTRA_DATA);
+                final String response = byteArrayToHexString(txValue);
                 runOnUiThread(new Runnable() {
                     public void run() {
                         try {
-                            String text = new String(txValue, "UTF-8");
                             String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                            listAdapter.add("[" + currentDateTimeString + "] RX: " + text);
+                            listAdapter.add("[" + currentDateTimeString + "] RX: " + response);
+                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                            listAdapter.add("[" + currentDateTimeString + "] "+ ALPGenerator.ParseALP(txValue));
                             messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
 
                         } catch (Exception e) {
@@ -380,6 +383,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
         }
     };
+
 
     @SuppressLint("MissingPermission")
     private void getFusedLocation() {
@@ -540,4 +544,17 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                     .show();
         }
     }
+
+    public static String byteArrayToHexString(byte[] array) {
+        StringBuffer hexString = new StringBuffer();
+        for (byte b : array) {
+            int intVal = b & 0xff;
+            if (intVal < 0x10)
+                hexString.append("0");
+            hexString.append(Integer.toHexString(intVal));
+            hexString.append(" ");
+        }
+        return hexString.toString();
+    }
+
 }
