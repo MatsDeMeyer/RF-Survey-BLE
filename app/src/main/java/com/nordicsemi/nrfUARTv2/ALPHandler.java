@@ -68,6 +68,10 @@ public class ALPHandler {
             return "Reponse not OK";
     }
 
+    public String results(){
+        return "Ok/Nok Results: " + OkResults.size() + "/" + NokResults.size();
+    }
+
     byte[] concat(byte[]...arrays)
     {
         // Determine the length of the result array

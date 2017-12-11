@@ -59,6 +59,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnSuccessListener;
 
@@ -86,12 +89,15 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     private BluetoothAdapter mBtAdapter = null;
     private ListView messageListView;
     private ArrayAdapter<String> listAdapter;
-    private Button btnConnectDisconnect, btnSend, btnStart, btnStop, btnLocation;
+    private Button btnConnectDisconnect, btnSend, btnStart, btnStop;
     private EditText edtMessage;
     private FusedLocationProviderClient mFusedLocationClient;
+    private LocationRequest mLocationRequest;
+    private LocationCallback mLocationCallback;
+    public static Location currentLocation;
     // Create the Handler object (on the main thread by default)
-    Handler ALPhandler = new Handler();
-    ALPGenerator ALPGenerator = new ALPGenerator();
+    Handler PeriodicALP = new Handler();
+    ALPHandler ALPHandler= new ALPHandler();
 
 
     @TargetApi(Build.VERSION_CODES.M)
@@ -116,7 +122,23 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             }
         } else {
             mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+            createLocationRequest();
         }
+
+        mLocationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                for (Location location : locationResult.getLocations()) {
+                    // Update UI with location data
+                    currentLocation = location;
+                    //Update the log with time stamp
+                    /*String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
+                    listAdapter.add("[" + currentDateTimeString + "] Location updated, lat: " + currentLocation.getLatitude() + " long: " + currentLocation.getLongitude());
+                    messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                    */
+                }
+            };
+        };
 
         messageListView = (ListView) findViewById(R.id.listMessage);
         listAdapter = new ArrayAdapter<String>(this, R.layout.message_detail);
@@ -129,14 +151,15 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         btnStop = (Button) findViewById(R.id.stopButton);
         btnStart.setEnabled(false);
         btnStop.setEnabled(false);
-        btnLocation = (Button) findViewById(R.id.locButton);
         service_init();
 
         // Periodically send ALP commands
-        final Runnable PeriodicALP = new Runnable() {
+        final Runnable PeriodicSurvey = new Runnable() {
             @Override
             public void run() {
-                byte[] ALP = ALPGenerator.GenerateALP();
+                //update the location using getLastLocation(), used for the response;
+               //updateLocation();
+                byte[] ALP = ALPHandler.GenerateALP();
                 //send data to service
                 // Do something here on the main thread
                 mService.writeRXCharacteristic(ALP);
@@ -146,7 +169,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                 messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
                 Log.d("Handlers", "Called on main thread");
 
-                ALPhandler.postDelayed(this, 10000);
+                PeriodicALP.postDelayed(this, 10000);
 
 
             }
@@ -220,7 +243,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                     messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
 
                     // Start the ALP runnable task by posting through the handler
-                    ALPhandler.post(PeriodicALP);
+                    PeriodicALP.post(PeriodicSurvey);
 
 
                     //
@@ -237,7 +260,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             @Override
             public void onClick(View v) {
                 //stop the ALP commands
-                ALPhandler.removeCallbacks(PeriodicALP);
+                PeriodicALP.removeCallbacks(PeriodicSurvey);
                 String message = "Stop\r\n";
                 byte[] value;
                 try {
@@ -248,21 +271,14 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                     String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                     listAdapter.add("[" + currentDateTimeString + "] Stopping the survey");
                     messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+
+                    listAdapter.add("[" + currentDateTimeString + "] " + ALPHandler.results());
+                    messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
                 } catch (UnsupportedEncodingException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
 
-            }
-        });
-
-
-        // Handle Location button
-        btnLocation.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("MissingPermission")
-            @Override
-            public void onClick(View v) {
-                getFusedLocation();
             }
         });
 
@@ -294,10 +310,6 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
         //Handler events that received from UART service 
         public void handleMessage(Message msg) {
-            //Update the log with time stamp
-            String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-            listAdapter.add("[" + currentDateTimeString + "] Data Received");
-            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
 
         }
     };
@@ -365,7 +377,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                             String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                             listAdapter.add("[" + currentDateTimeString + "] RX: " + response);
                             messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-                            listAdapter.add("[" + currentDateTimeString + "] "+ ALPGenerator.ParseALP(txValue));
+                            listAdapter.add("[" + currentDateTimeString + "] "+ ALPHandler.ParseALP(txValue));
                             messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
 
                         } catch (Exception e) {
@@ -385,22 +397,10 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     };
 
 
-    @SuppressLint("MissingPermission")
-    private void getFusedLocation() {
-        mFusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        // Got last known location. In some rare situations this can be null.
-                        if (location != null) {
-                            //Update the log with time stamp
-                            String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                            listAdapter.add("[" + currentDateTimeString + "] Location: Lat: " + location.getLatitude() + " Long: " + location.getLongitude());
-                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-                        }
-                    }
-                });
-    }
+
+
+
+
 
     private void service_init() {
         Intent bindIntent = new Intent(this, UartService.class);
@@ -444,6 +444,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     protected void onStop() {
         Log.d(TAG, "onStop");
         super.onStop();
+        stopLocationUpdates();
     }
 
     @Override
@@ -467,6 +468,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
         }
+        startLocationUpdates();
+
 
     }
 
@@ -556,5 +559,24 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         }
         return hexString.toString();
     }
+
+    protected void createLocationRequest() {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(10000);
+        mLocationRequest.setFastestInterval(5000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    @SuppressLint("MissingPermission")
+    private void startLocationUpdates() {
+        mFusedLocationClient.requestLocationUpdates(mLocationRequest,
+                mLocationCallback,
+                null /* Looper */);
+    }
+
+    private void stopLocationUpdates() {
+        mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+    }
+
 
 }

@@ -86,16 +86,6 @@
                 android:text="Stop"
                 android:textAppearance="@android:style/TextAppearance.Material.Button" />
 
-            <Button
-                android:id="@+id/locButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignTop="@+id/stopButton"
-                android:layout_marginStart="25dp"
-                android:layout_toEndOf="@+id/stopButton"
-                android:text="Location"
-                android:textAppearance="@android:style/TextAppearance.Material.Button" />
-
         </RelativeLayout>
     </LinearLayout>
 
