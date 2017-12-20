@@ -89,12 +89,14 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     private BluetoothAdapter mBtAdapter = null;
     private ListView messageListView;
     private ArrayAdapter<String> listAdapter;
-    private Button btnConnectDisconnect, btnSend, btnStart, btnStop;
-    private EditText edtMessage;
+    private Button btnConnectDisconnect, btnStart, btnStop, btnClear;
     private FusedLocationProviderClient mFusedLocationClient;
     private LocationRequest mLocationRequest;
     private LocationCallback mLocationCallback;
+    private int ALPDelay = 5000;
     public static Location currentLocation;
+
+
     // Create the Handler object (on the main thread by default)
     Handler PeriodicALP = new Handler();
     ALPHandler ALPHandler= new ALPHandler();
@@ -125,6 +127,16 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             createLocationRequest();
         }
 
+        int permissionCheck2 = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if (permissionCheck2 != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                Toast.makeText(this, "External storage permission is required", Toast.LENGTH_SHORT).show();
+            } else {
+                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+            }
+        } else {
+        }
+
         mLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
@@ -145,8 +157,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         messageListView.setAdapter(listAdapter);
         messageListView.setDivider(null);
         btnConnectDisconnect = (Button) findViewById(R.id.btn_select);
-        btnSend = (Button) findViewById(R.id.sendButton);
-        edtMessage = (EditText) findViewById(R.id.sendText);
+        btnClear = (Button)findViewById(R.id.clearButton);
         btnStart = (Button) findViewById(R.id.startButton);
         btnStop = (Button) findViewById(R.id.stopButton);
         btnStart.setEnabled(false);
@@ -169,7 +180,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                 messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
                 Log.d("Handlers", "Called on main thread");
 
-                PeriodicALP.postDelayed(this, 10000);
+                PeriodicALP.postDelayed(this, ALPDelay);
 
 
             }
@@ -199,30 +210,6 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                         }
                     }
                 }
-            }
-        });
-
-        // Handle Send button
-        btnSend.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                EditText editText = (EditText) findViewById(R.id.sendText);
-                String message = editText.getText().toString();
-                byte[] value;
-                try {
-                    //send data to service
-                    value = message.getBytes("UTF-8");
-                    mService.writeRXCharacteristic(value);
-                    //Update the log with time stamp
-                    String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                    listAdapter.add("[" + currentDateTimeString + "] TX: " + message);
-                    messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-                    edtMessage.setText("");
-                } catch (UnsupportedEncodingException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-
             }
         });
 
@@ -274,10 +261,60 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
                     listAdapter.add("[" + currentDateTimeString + "] " + ALPHandler.results());
                     messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+
+                    AlertDialog.Builder builder = new AlertDialog.Builder(v.getContext());
+
+                    builder.setTitle("Results");
+                    builder.setMessage(ALPHandler.results());
+
+                    builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
+
+                        public void onClick(DialogInterface dialog, int which) {
+                            // Do nothing but close the dialog
+                            ALPHandler.writeToCSV();
+                            dialog.dismiss();
+                            listAdapter.clear();
+                            listAdapter.notifyDataSetChanged();
+
+                            String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
+                            listAdapter.add("[" + currentDateTimeString + "] Saved the results");
+                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                        }
+                    });
+
+                    builder.setNegativeButton("Discard", new DialogInterface.OnClickListener() {
+
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+
+                            // Do nothing
+                            ALPHandler.discardResults();
+                            dialog.dismiss();
+                            String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
+
+                            listAdapter.add("[" + currentDateTimeString + "] Discarded the results");
+                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                        }
+                    });
+
+                    AlertDialog alert = builder.create();
+                    alert.show();
+
                 } catch (UnsupportedEncodingException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
+
+            }
+        });
+
+        // Handle Clear button
+        btnClear.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                listAdapter.clear();
+                listAdapter.notifyDataSetChanged();
 
             }
         });
@@ -327,8 +364,6 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                         String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                         Log.d(TAG, "UART_CONNECT_MSG");
                         btnConnectDisconnect.setText("Disconnect");
-                        edtMessage.setEnabled(true);
-                        btnSend.setEnabled(true);
                         btnStart.setEnabled(true);
                         btnStop.setEnabled(true);
                         ((TextView) findViewById(R.id.deviceName)).setText(mDevice.getName() + " - ready");
@@ -346,8 +381,6 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                         String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                         Log.d(TAG, "UART_DISCONNECT_MSG");
                         btnConnectDisconnect.setText("Connect");
-                        edtMessage.setEnabled(false);
-                        btnSend.setEnabled(false);
                         btnStart.setEnabled(false);
                         btnStop.setEnabled(false);
                         ((TextView) findViewById(R.id.deviceName)).setText("Not Connected");
@@ -377,8 +410,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                             String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                             listAdapter.add("[" + currentDateTimeString + "] RX: " + response);
                             messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-                            listAdapter.add("[" + currentDateTimeString + "] "+ ALPHandler.ParseALP(txValue));
-                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                            //listAdapter.add("[" + currentDateTimeString + "] "+ ALPHandler.ParseALP(txValue));
+                            //messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
 
                         } catch (Exception e) {
                             Log.e(TAG, e.toString());
@@ -462,6 +495,9 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     @Override
     public void onResume() {
         super.onResume();
+        //scroll to end of listview
+        messageListView.setSelection(listAdapter.getCount() - 1);
+
         Log.d(TAG, "onResume");
         if (!mBtAdapter.isEnabled()) {
             Log.i(TAG, "onResume - BT not enabled yet");
@@ -469,6 +505,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
         }
         startLocationUpdates();
+
 
 
     }
