@@ -19,8 +19,9 @@ import java.util.Random;
  */
 
 public class ALPHandler {
-    List<Integer> unhandledIndices = new ArrayList<Integer>();
+    //List<Integer> unhandledIndices = new ArrayList<Integer>();
     List<Byte> unhandledTags = new ArrayList<Byte>();
+    List<Byte> handledTags = new ArrayList<Byte>();
     List<Result> OkResults = new ArrayList<Result>();
     List<Result> NokResults = new ArrayList<Result>();
 
@@ -42,9 +43,6 @@ public class ALPHandler {
         byte[] TAG = new byte[1];
         random.nextBytes(TAG);
         unhandledTags.add(TAG[0]);
-        //add to NOK list
-        NokResults.add(new Result(MainActivity.currentLocation, TAG[0]));
-        unhandledIndices.add(NokResults.size()-1);
 
         byte[] ALP = {  (byte)0xb4, //tag response action
                         TAG[0], //tag
@@ -93,29 +91,98 @@ public class ALPHandler {
                     c0 00 02 a3 37
 
          c0 komt niet altijd door?
-         response pas na volgende ALP command
-
+         BUG MET RESPONSE ORDER? TAGS?
+         response pas na volgende ALP command?
          */
-        if(unhandledTags.contains(response[response.length-1]))
+
+        if(response[response.length - 2] == (byte)0xe3 && response[response.length - 3] == (byte)0x02 && response[response.length - 4] == (byte)0x00)
         {
+            byte tag = response[response.length-1];
+            unhandledTags.remove(unhandledTags.indexOf(tag));
+            handledTags.add(tag);
+            NokResults.add(new Result(MainActivity.currentLocation, tag));
             System.out.println("Ok Results: " + OkResults.toString());
             System.out.println("Nok Results: " + NokResults.toString());
 
-            Result parsedResult = NokResults.get(unhandledIndices.get(unhandledIndices.size()-1));
-            NokResults.remove(NokResults.get(unhandledIndices.get(unhandledIndices.size()-1)));
-            OkResults.add(parsedResult);
-            unhandledTags.remove(unhandledTags.indexOf(response[response.length-1]));
-
-            System.out.println("Ok Results: " + OkResults.toString());
-            System.out.println("Nok Results: " + NokResults.toString());
-            return "Response OK, remaining unhandled tags: " + unhandledTags.size();
+            return "No Gateways found";
         }
-        else
-            return "Reponse not OK";
+        else if(response[response.length - 2] == (byte)0xa3 && response[response.length - 3] == (byte)0x02 && response[response.length - 4] == (byte)0x00)
+        {
+            System.out.println("Response: " + MainActivity.byteArrayToHexString(response));
+
+            byte ALPCommands[] = Arrays.copyOfRange(response, 0, response.length-5);
+            System.out.println("ALP before: " + MainActivity.byteArrayToHexString(ALPCommands));
+
+            if(ALPCommands[0] == (byte)0x00)
+            {
+                //add 0xc0 to the front (this gets cut off sometimes
+                byte[] c0Array = {(byte)0xc0};
+                ALPCommands = concat(c0Array, ALPCommands);
+            }
+            System.out.println("ALP fixed: " + MainActivity.byteArrayToHexString(ALPCommands));
+
+            /*
+            Testing multiple gateways:
+            ALPCommands = concat(ALPCommands, ALPCommands);
+
+
+            System.out.println("ALP twice: " + MainActivity.byteArrayToHexString(ALPCommands));
+            */
+
+            //create result variable
+            Result result = new Result(MainActivity.currentLocation);
+            //last byte of ALP command is tag
+            byte tag = ALPCommands[ALPCommands.length-1];
+            //update tag in results
+            result.setTag(tag);
+            if(unhandledTags.indexOf(tag) != -1)
+            {
+                unhandledTags.remove(unhandledTags.indexOf(tag));
+            }
+            handledTags.add(tag);
+
+            //cut array into chunks of 39 (chunk per gateway)
+            byte[][] ALPCommand = splitBytes(ALPCommands, 39);
+            System.out.println("Chunks found: " + ALPCommand.length);
+            for(int j = 0; j < ALPCommand.length; j ++)
+            {
+                //cut out UID part (8 bytes)
+                byte UIDPart[] = Arrays.copyOfRange(ALPCommand[j], 17, 25);
+                String UID = MainActivity.byteArrayToHexString(UIDPart);
+                //add UID to UID array in result
+                result.addGateway(UID);
+                System.out.println("Gateway added: " + UID);
+            }
+            OkResults.add(result);
+            System.out.println("Ok Results: " + OkResults.toString());
+            System.out.println("Nok Results: " + NokResults.toString());
+            return "Gateways found: " + result.UIDs;
+
+        }
+        return "No Gateways found";
     }
 
     public String results(){
-        return "Ok/Nok Results: " + OkResults.size() + "/" + NokResults.size();
+        return "Ok/Nok Results: " + OkResults.size() + "/" + NokResults.size() + " Handled Tags: " + handledTags.size() + " Unhandled tags: " + unhandledTags.size();
+    }
+
+    public byte[][] splitBytes(final byte[] data, final int chunkSize)
+    {
+        final int length = data.length;
+        final byte[][] dest = new byte[(length + chunkSize - 1)/chunkSize][];
+        int destIndex = 0;
+        int stopIndex = 0;
+
+        for (int startIndex = 0; startIndex + chunkSize <= length; startIndex += chunkSize)
+        {
+            stopIndex += chunkSize;
+            dest[destIndex++] = Arrays.copyOfRange(data, startIndex, stopIndex);
+        }
+
+        if (stopIndex < length)
+            dest[destIndex] = Arrays.copyOfRange(data, stopIndex, length);
+
+        return dest;
     }
 
     byte[] concat(byte[]...arrays)
@@ -195,8 +262,9 @@ public class ALPHandler {
     {
         OkResults = new ArrayList<Result>();
         NokResults = new ArrayList<Result>();
-        unhandledIndices = new ArrayList<Integer>();
+        //unhandledIndices = new ArrayList<Integer>();
         unhandledTags = new ArrayList<Byte>();
+        handledTags = new ArrayList<Byte>();
     }
 
 

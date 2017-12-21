@@ -93,7 +93,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     private FusedLocationProviderClient mFusedLocationClient;
     private LocationRequest mLocationRequest;
     private LocationCallback mLocationCallback;
-    private int ALPDelay = 5000;
+    private int ALPDelay = 10000;
     public static Location currentLocation;
 
 
@@ -410,8 +410,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                             String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                             listAdapter.add("[" + currentDateTimeString + "] RX: " + response);
                             messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-                            //listAdapter.add("[" + currentDateTimeString + "] "+ ALPHandler.ParseALP(txValue));
-                            //messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                            listAdapter.add("[" + currentDateTimeString + "] "+ ALPHandler.ParseALP(txValue));
+                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
 
                         } catch (Exception e) {
                             Log.e(TAG, e.toString());
