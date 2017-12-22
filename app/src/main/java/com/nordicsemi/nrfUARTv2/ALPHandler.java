@@ -1,12 +1,16 @@
 package com.nordicsemi.nrfUARTv2;
 
+import org.json.JSONArray;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
+import java.io.Writer;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -77,25 +81,12 @@ public class ALPHandler {
         tag: 55
 
 
-        met python: c0 00 24 62 d7 38 00 00 1f 29 50 00 20 00 00 20 01 43 37 31 34 00 3e 00 41 20 00 00 08 43 37 31 34 00 3e 00 41 23 37
-                    c0 00 02 a3 37
+        met python: c0 00 24 62 d7 38 00 00 1f 29  50 00 20 00 00 20 01 43 37 31 34  00 3e 00 41 20 00 00 08 43 37  31 34 00 3e 00 41 23 TAG
+                    c0 00 02 a3 TAG
 
-        met app:    c0 00 24 62 d7 38 00 00 1d 27 50 00 6c
-       (per 1 byte) c0 00 02 a3 37
-
-                2:  c0 00 24 62 d7 38 00 00 18 22 50 00 c2 00 00 20 01 43 37 31 34 00 3e
-                    c0 00 02 a3 37
-                3:  c0 00 24 62 d7 38 00 00 17 21 50 00 de 00 00 20 01 43 37 31 34 00 3e 00 41 20 00 00 08 43 37 31 34
-                    c0 00 02 a3 37
-                4:  c0 00 24 62 d7 38 00 00 1c 26 50 00 21 00 00 20 01 43 37 31 34 00 3e 00 41 20 00 00 08 43 37 31 34 00 3e 00 41 23 37
-                    c0 00 02 a3 37
-
-         c0 komt niet altijd door?
-         BUG MET RESPONSE ORDER? TAGS?
-         response pas na volgende ALP command?
          */
 
-        if(response[response.length - 2] == (byte)0xe3 && response[response.length - 3] == (byte)0x02 && response[response.length - 4] == (byte)0x00)
+        if(response[response.length - 2] == (byte)0xe3 && response[response.length - 3] == (byte)0x02 && response[response.length - 4] == (byte)0x00 && response[response.length - 5] == (byte)0xc0)
         {
             byte tag = response[response.length-1];
             unhandledTags.remove(unhandledTags.indexOf(tag));
@@ -110,16 +101,8 @@ public class ALPHandler {
         {
             System.out.println("Response: " + MainActivity.byteArrayToHexString(response));
 
+            //cut off last short response, only keep UID responses
             byte ALPCommands[] = Arrays.copyOfRange(response, 0, response.length-5);
-            System.out.println("ALP before: " + MainActivity.byteArrayToHexString(ALPCommands));
-
-            if(ALPCommands[0] == (byte)0x00)
-            {
-                //add 0xc0 to the front (this gets cut off sometimes
-                byte[] c0Array = {(byte)0xc0};
-                ALPCommands = concat(c0Array, ALPCommands);
-            }
-            System.out.println("ALP fixed: " + MainActivity.byteArrayToHexString(ALPCommands));
 
             /*
             Testing multiple gateways:
@@ -159,7 +142,8 @@ public class ALPHandler {
             return "Gateways found: " + result.UIDs;
 
         }
-        return "No Gateways found";
+        else
+            return "NOK";
     }
 
     public String results(){
@@ -206,6 +190,34 @@ public class ALPHandler {
         }
 
         return result;
+    }
+
+    public void saveJSON(){
+        JSONArray jsonArray = new JSONArray();
+        for (int i=0; i < OkResults.size(); i++) {
+            jsonArray.put(OkResults.get(i).getJSONObject());
+        }
+        for (int i=0; i < NokResults.size(); i++) {
+            jsonArray.put(NokResults.get(i).getJSONObject());
+        }
+        System.out.println(jsonArray);
+
+        Writer output = null;
+        String currentDateString = DateFormat.getDateInstance().format(new Date());
+        String currentTimeString = DateFormat.getTimeInstance().format(new Date());
+        String fileName = "Survey Result " + currentDateString + "-" + currentTimeString + ".json";
+        String baseDir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
+        String filePath = baseDir + File.separator + fileName;
+
+        File file = new File(filePath);
+        try {
+            output = new BufferedWriter(new FileWriter(file));
+            output.write(jsonArray.toString());
+            output.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     //JSON ipv csv? array per tag

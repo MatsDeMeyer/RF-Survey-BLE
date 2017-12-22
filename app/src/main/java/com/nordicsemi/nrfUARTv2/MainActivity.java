@@ -65,11 +65,13 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnSuccessListener;
 
+import org.json.JSONArray;
+
 import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
 import java.util.Arrays;
 import java.util.Date;
-
+import java.util.Objects;
 
 
 public class MainActivity extends Activity implements RadioGroup.OnCheckedChangeListener {
@@ -96,9 +98,12 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     private int ALPDelay = 10000;
     public static Location currentLocation;
 
+    private byte[] BLEResponse = {};
+
 
     // Create the Handler object (on the main thread by default)
     Handler PeriodicALP = new Handler();
+    //alp handler class (generating, parsing, ...)
     ALPHandler ALPHandler= new ALPHandler();
 
 
@@ -176,7 +181,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                 mService.writeRXCharacteristic(ALP);
                 //Update the log with time stamp
                 String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                listAdapter.add("[" + currentDateTimeString + "] ALP: " + byteArrayToHexString(ALP));
+                listAdapter.add("[" + currentDateTimeString + "] Querying gateways");
                 messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
                 Log.d("Handlers", "Called on main thread");
 
@@ -271,7 +276,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
                         public void onClick(DialogInterface dialog, int which) {
                             // Do nothing but close the dialog
-                            ALPHandler.writeToCSV();
+                            ALPHandler.saveJSON();
+
                             dialog.dismiss();
                             listAdapter.clear();
                             listAdapter.notifyDataSetChanged();
@@ -408,10 +414,16 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                     public void run() {
                         try {
                             String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                            listAdapter.add("[" + currentDateTimeString + "] RX: " + response);
-                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-                            listAdapter.add("[" + currentDateTimeString + "] "+ ALPHandler.ParseALP(txValue));
-                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                            //listAdapter.add("[" + currentDateTimeString + "] RX: " + response);
+                            //messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                            int count = listAdapter.getCount();
+                            BLEResponse = concat(BLEResponse, txValue);
+                            String ParseResult = ALPHandler.ParseALP(BLEResponse);
+                            if(!Objects.equals(ParseResult, "NOK")) {
+                                listAdapter.add("[" + currentDateTimeString + "] " + ParseResult);
+                                messageListView.smoothScrollToPosition(count - 1);
+                                BLEResponse = new byte[0];
+                            }
 
                         } catch (Exception e) {
                             Log.e(TAG, e.toString());
@@ -613,6 +625,29 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
     private void stopLocationUpdates() {
         mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+    }
+
+    byte[] concat(byte[]...arrays)
+    {
+        // Determine the length of the result array
+        int totalLength = 0;
+        for (int i = 0; i < arrays.length; i++)
+        {
+            totalLength += arrays[i].length;
+        }
+
+        // create the result array
+        byte[] result = new byte[totalLength];
+
+        // copy the source arrays into the result array
+        int currentIndex = 0;
+        for (int i = 0; i < arrays.length; i++)
+        {
+            System.arraycopy(arrays[i], 0, result, currentIndex, arrays[i].length);
+            currentIndex += arrays[i].length;
+        }
+
+        return result;
     }
 
 

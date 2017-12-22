@@ -2,7 +2,11 @@ package com.nordicsemi.nrfUARTv2;
 
 import android.location.Location;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -57,4 +61,37 @@ public class Result {
         }
 
     }
+
+    public JSONObject getJSONObject() {
+        JSONObject obj = new JSONObject();
+        try {
+            obj.put("Tag", byteToHex(tag));
+            obj.put("Dead spot", deadspot);
+            JSONObject locJSON = new JSONObject();
+            locJSON.put("Latitude", location.getLatitude());
+            locJSON.put("Longitude", location.getLongitude());
+            obj.put("Location", locJSON);
+
+            JSONObject UIDJSON = new JSONObject();
+            Iterator<String> iterator = UIDs.iterator();
+            // while loop
+            while (iterator.hasNext()) {
+                UIDJSON.put("UID", iterator.next());
+            }
+            obj.put("Gateways", UIDJSON);
+
+        } catch (JSONException e) {
+        }
+        return obj;
+    }
+
+    public static String byteToHex(byte b) {
+        StringBuffer hexString = new StringBuffer();
+        int intVal = b & 0xff;
+        if (intVal < 0x10)
+            hexString.append("0");
+        hexString.append(Integer.toHexString(intVal));
+        return hexString.toString();
+    }
+
 }
