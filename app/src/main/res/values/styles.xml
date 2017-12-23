@@ -32,11 +32,13 @@
             res/values-vXX/styles.xml, while customizations related to
             backward-compatibility can go here.
         -->
+
     </style>
 
     <!-- Application theme. -->
-    <style name="AppTheme" parent="AppBaseTheme">
+    <style name="AppTheme" parent="android:Theme.Material.Light.LightStatusBar">
         <!-- All customizations that are NOT specific to a particular API-level can go here. -->
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
     </style>
 
     <style name="DialogFixed" parent="android:Theme.Material.Light.Dialog.NoActionBar" >

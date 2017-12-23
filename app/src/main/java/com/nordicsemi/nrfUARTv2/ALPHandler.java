@@ -29,7 +29,12 @@ public class ALPHandler {
     List<Result> OkResults = new ArrayList<Result>();
     List<Result> NokResults = new ArrayList<Result>();
 
-    public byte[] GenerateALP(){
+    public byte[] GenerateALP(String accessProfile, String fileID, String fileOffset, String fileLength){
+
+        byte accessProfileByte[] = hexStringToByteArray(accessProfile);
+        byte fileIDByte[] = hexStringToByteArray(fileID);
+        byte fileOffsetByte[] = hexStringToByteArray(fileOffset);
+        byte fileLengthByte[] = hexStringToByteArray(fileLength);
 
         //41 54 24 44 c0 00 0c b4 37 32 d7 01 00 10 01 01 00 00 08
 
@@ -48,6 +53,19 @@ public class ALPHandler {
         random.nextBytes(TAG);
         unhandledTags.add(TAG[0]);
 
+        /*byte[] ALP = {  (byte)0xb4, //tag response action
+                TAG[0], //tag
+                (byte)0x32,
+                (byte)0xd7,
+                (byte)0x01,
+                (byte)0x00,
+                (byte)0x10,
+                (byte)0x01, //access class
+                (byte)0x01, //action (read)
+                (byte)0x00, //firmware file (uid)
+                (byte)0x00, //offset
+                (byte)0x08};//length*/
+
         byte[] ALP = {  (byte)0xb4, //tag response action
                         TAG[0], //tag
                         (byte)0x32,
@@ -55,37 +73,24 @@ public class ALPHandler {
                         (byte)0x01,
                         (byte)0x00,
                         (byte)0x10,
-                        (byte)0x01,
-                        (byte)0x01,
-                        (byte)0x00, //firmware file (uid)
-                        (byte)0x00,
-                        (byte)0x08};
+                        accessProfileByte[0], //access class
+                        (byte)0x01, //action (read)
+                        fileIDByte[0], //firmware file (uid)
+                        fileOffsetByte[0], //offset
+                        fileLengthByte[0]};//length
+
         command = concat(command, ALP);
 
         //set serial length byte to length of ALP command
         command[6] = (byte)ALP.length;
 
+        System.out.println("ALP: " + MainActivity.byteArrayToHexString(command));
+
         return command;
     }
 
     public String ParseALP(byte[] response){
-        /*
-        Response op readfiledata: c0 00 07 20 00 00 01 42 a3 55
-        serial: c0 00 07 (length)
-        action: 20
-        file id: 0
-        offset: 0
-        size: 1
-        file data: 42
-        ??: a3 (163)
-        tag: 55
-
-
-        met python: c0 00 24 62 d7 38 00 00 1f 29  50 00 20 00 00 20 01 43 37 31 34  00 3e 00 41 20 00 00 08 43 37  31 34 00 3e 00 41 23 TAG
-                    c0 00 02 a3 TAG
-
-         */
-
+        System.out.println("Response " + response);
         if(response[response.length - 2] == (byte)0xe3 && response[response.length - 3] == (byte)0x02 && response[response.length - 4] == (byte)0x00 && response[response.length - 5] == (byte)0xc0)
         {
             byte tag = response[response.length-1];
@@ -95,12 +100,10 @@ public class ALPHandler {
             System.out.println("Ok Results: " + OkResults.toString());
             System.out.println("Nok Results: " + NokResults.toString());
 
-            return "No Gateways found";
+            return "No response";
         }
         else if(response[response.length - 2] == (byte)0xa3 && response[response.length - 3] == (byte)0x02 && response[response.length - 4] == (byte)0x00)
         {
-            System.out.println("Response: " + MainActivity.byteArrayToHexString(response));
-
             //cut off last short response, only keep UID responses
             byte ALPCommands[] = Arrays.copyOfRange(response, 0, response.length-5);
 
@@ -111,7 +114,6 @@ public class ALPHandler {
 
             System.out.println("ALP twice: " + MainActivity.byteArrayToHexString(ALPCommands));
             */
-
             //create result variable
             Result result = new Result(MainActivity.currentLocation);
             //last byte of ALP command is tag
@@ -124,22 +126,32 @@ public class ALPHandler {
             }
             handledTags.add(tag);
 
-            //cut array into chunks of 39 (chunk per gateway)
-            byte[][] ALPCommand = splitBytes(ALPCommands, 39);
-            System.out.println("Chunks found: " + ALPCommand.length);
-            for(int j = 0; j < ALPCommand.length; j ++)
+            if(MainActivity.defaultParameters)
             {
-                //cut out UID part (8 bytes)
-                byte UIDPart[] = Arrays.copyOfRange(ALPCommand[j], 17, 25);
-                String UID = MainActivity.byteArrayToHexString(UIDPart);
-                //add UID to UID array in result
-                result.addGateway(UID);
-                System.out.println("Gateway added: " + UID);
+                //cut array into chunks of 39 (chunk per gateway)
+                byte[][] ALPCommand = splitBytes(ALPCommands, 39);
+                System.out.println("Chunks found: " + ALPCommand.length);
+                for(int j = 0; j < ALPCommand.length; j ++)
+                {
+                    //cut out UID part (8 bytes)
+                    byte UIDPart[] = Arrays.copyOfRange(ALPCommand[j], 17, 25);
+                    String UID = MainActivity.byteArrayToHexString(UIDPart);
+                    //add UID to UID array in result
+                    result.addGateway(UID);
+                    System.out.println("Gateway added: " + UID);
+                }
+                OkResults.add(result);
+                System.out.println("Ok Results: " + OkResults.toString());
+                System.out.println("Nok Results: " + NokResults.toString());
+                return "Gateways found: " + result.UIDs;
             }
-            OkResults.add(result);
-            System.out.println("Ok Results: " + OkResults.toString());
-            System.out.println("Nok Results: " + NokResults.toString());
-            return "Gateways found: " + result.UIDs;
+            else
+            {
+                //cut array into chunks of 39 (chunk per gateway)
+                //TODO: fix parsing other commands
+                return "Response: " + MainActivity.byteArrayToHexString(ALPCommands);
+            }
+
 
         }
         else
@@ -220,56 +232,6 @@ public class ALPHandler {
 
     }
 
-    //JSON ipv csv? array per tag
-    public static final String CSV_SEPARATOR = ",";
-    public void writeToCSV()
-    {
-        try
-        {
-            String baseDir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
-            String currentDateString = DateFormat.getDateInstance().format(new Date());
-            String currentTimeString = DateFormat.getTimeInstance().format(new Date());
-            String fileName = "RF-Survey-Result " + currentDateString + "-" + currentTimeString + ".csv";
-            String filePath = baseDir + File.separator + fileName;
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filePath), "UTF-8"));
-
-            String header = "Status" + CSV_SEPARATOR + "Tag (hex)" + CSV_SEPARATOR + "Latitude" + CSV_SEPARATOR + "Longitude";
-            bw.write(header);
-            bw.newLine();
-
-            for (Result result : OkResults)
-            {
-                String oneLine = "OK" + CSV_SEPARATOR + Integer.toHexString(result.tag & 0xFF) +
-                        CSV_SEPARATOR +
-                        result.location.getLatitude() +
-                        CSV_SEPARATOR +
-                        (result.location.getLongitude());
-                bw.write(oneLine);
-                bw.newLine();
-            }
-
-            for (Result result : NokResults)
-            {
-                String oneLine = "Dead Spot" + CSV_SEPARATOR + Integer.toHexString(result.tag & 0xFF) +
-                        CSV_SEPARATOR +
-                        result.location.getLatitude() +
-                        CSV_SEPARATOR +
-                        result.location.getLongitude();
-                bw.write(oneLine);
-                bw.newLine();
-            }
-
-            bw.flush();
-            bw.close();
-        }
-        catch (UnsupportedEncodingException e) {} catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-
     public void discardResults()
     {
         OkResults = new ArrayList<Result>();
@@ -277,6 +239,16 @@ public class ALPHandler {
         //unhandledIndices = new ArrayList<Integer>();
         unhandledTags = new ArrayList<Byte>();
         handledTags = new ArrayList<Byte>();
+    }
+
+    public static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                    + Character.digit(s.charAt(i+1), 16));
+        }
+        return data;
     }
 
 

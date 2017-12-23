@@ -37,6 +37,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.location.Location;
@@ -45,10 +46,14 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -100,6 +105,14 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
     private byte[] BLEResponse = {};
 
+    String accessProfile;
+    String fileID;
+    String fileOffset;
+    String fileLength;
+
+    public static boolean defaultParameters;
+    public boolean running;
+
 
     // Create the Handler object (on the main thread by default)
     Handler PeriodicALP = new Handler();
@@ -112,6 +125,22 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
+
+        //properly initialize the settings with default values
+        PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
+        SharedPreferences sharedPref =
+                PreferenceManager.getDefaultSharedPreferences(this);
+        accessProfile = sharedPref.getString(SettingsActivity.KEY_PREF_ACCESS_PROFILE, "01");
+        fileID = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_ID, "00");
+        fileOffset = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_OFFSET, "00");
+        fileLength = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_LENGTH, "08");
+        if((accessProfile + fileID + fileOffset + fileLength).equals("01000008"))
+        {
+            defaultParameters = true;
+        }
+        else{
+            defaultParameters = false;
+        }
 
         mBtAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBtAdapter == null) {
@@ -141,6 +170,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             }
         } else {
         }
+
 
         mLocationCallback = new LocationCallback() {
             @Override
@@ -175,7 +205,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             public void run() {
                 //update the location using getLastLocation(), used for the response;
                //updateLocation();
-                byte[] ALP = ALPHandler.GenerateALP();
+                byte[] ALP = ALPHandler.GenerateALP(accessProfile, fileID, fileOffset, fileLength);
                 //send data to service
                 // Do something here on the main thread
                 mService.writeRXCharacteristic(ALP);
@@ -222,26 +252,40 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                final String message = "Start\r\n";
-                final byte[] value;
-                try {
-                    //send data to service
-                    value = message.getBytes("UTF-8");
-                    // Do something here on the main thread
-                    mService.writeRXCharacteristic(value);
-                    //Update the log with time stamp
+                if(!running)
+                {
+                    final String message = "Start\r\n";
+                    final byte[] value;
+                    try {
+                        //send data to service
+                        value = message.getBytes("UTF-8");
+                        // Do something here on the main thread
+                        mService.writeRXCharacteristic(value);
+                        //Update the log with time stamp
+                        String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
+                        if(defaultParameters)
+                            listAdapter.add("[" + currentDateTimeString + "] Starting the survey (default parameters)");
+                        else
+                            listAdapter.add("[" + currentDateTimeString + "] Starting the survey (AP,ID,Offset,Length: " + accessProfile + fileID + fileOffset + fileLength + ")");
+                        messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+
+                        // Start the ALP runnable task by posting through the handler
+                        PeriodicALP.post(PeriodicSurvey);
+                        running = true;
+
+
+                        //
+                    } catch (UnsupportedEncodingException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+
+                }
+                else
+                {
                     String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                    listAdapter.add("[" + currentDateTimeString + "] Starting the survey");
+                    listAdapter.add("[" + currentDateTimeString + "] Survey already running");
                     messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-
-                    // Start the ALP runnable task by posting through the handler
-                    PeriodicALP.post(PeriodicSurvey);
-
-
-                    //
-                } catch (UnsupportedEncodingException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
                 }
 
             }
@@ -253,6 +297,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             public void onClick(View v) {
                 //stop the ALP commands
                 PeriodicALP.removeCallbacks(PeriodicSurvey);
+                running = false;
                 String message = "Stop\r\n";
                 byte[] value;
                 try {
@@ -327,6 +372,11 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
 
         // Set initial UI state
+
+
+        /*getSupportFragmentManager().beginTransaction()
+                .replace(android.R.id.content, new SettingsFragment())
+                .commit();*/
 
     }
 
@@ -521,6 +571,29 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
 
     }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.more_tab_menu, menu);
+
+        // return true so that the menu pop up is opened
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.settings:
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivity(intent);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
