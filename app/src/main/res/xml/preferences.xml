@@ -29,4 +29,10 @@
         android:singleLine="true"
         android:summary='Amount of bytes to be read in hex (default "08")'
         android:title="File Length" />
+    <EditTextPreference
+        android:defaultValue="10"
+        android:key="intervalPreference"
+        android:selectAllOnFocus="true"
+        android:summary='The interval at which queries are sent in s (default "10")'
+        android:title="Query interval" />
 </PreferenceScreen>

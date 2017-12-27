@@ -134,6 +134,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         fileID = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_ID, "00");
         fileOffset = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_OFFSET, "00");
         fileLength = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_LENGTH, "08");
+        ALPDelay = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_QUERY_INTERVAL, "10")) * 1000;
+
         if((accessProfile + fileID + fileOffset + fileLength).equals("01000008"))
         {
             defaultParameters = true;
@@ -295,66 +297,70 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         btnStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //stop the ALP commands
-                PeriodicALP.removeCallbacks(PeriodicSurvey);
-                running = false;
-                String message = "Stop\r\n";
-                byte[] value;
-                try {
-                    //send data to service
-                    value = message.getBytes("UTF-8");
-                    mService.writeRXCharacteristic(value);
-                    //Update the log with time stamp
-                    String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                    listAdapter.add("[" + currentDateTimeString + "] Stopping the survey");
-                    messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                if(running)
+                {
+                    //stop the ALP commands
+                    PeriodicALP.removeCallbacks(PeriodicSurvey);
+                    running = false;
+                    String message = "Stop\r\n";
+                    byte[] value;
+                    try {
+                        //send data to service
+                        value = message.getBytes("UTF-8");
+                        mService.writeRXCharacteristic(value);
+                        //Update the log with time stamp
+                        String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
+                        listAdapter.add("[" + currentDateTimeString + "] Stopping the survey");
+                        messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
 
-                    listAdapter.add("[" + currentDateTimeString + "] " + ALPHandler.results());
-                    messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                        listAdapter.add("[" + currentDateTimeString + "] " + ALPHandler.results());
+                        messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
 
-                    AlertDialog.Builder builder = new AlertDialog.Builder(v.getContext());
+                        AlertDialog.Builder builder = new AlertDialog.Builder(v.getContext());
 
-                    builder.setTitle("Results");
-                    builder.setMessage(ALPHandler.results());
+                        builder.setTitle("Results");
+                        builder.setMessage(ALPHandler.results());
 
-                    builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
+                        builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
 
-                        public void onClick(DialogInterface dialog, int which) {
-                            // Do nothing but close the dialog
-                            ALPHandler.saveJSON();
+                            public void onClick(DialogInterface dialog, int which) {
+                                // Do nothing but close the dialog
+                                ALPHandler.saveJSON();
 
-                            dialog.dismiss();
-                            listAdapter.clear();
-                            listAdapter.notifyDataSetChanged();
+                                dialog.dismiss();
+                                listAdapter.clear();
+                                listAdapter.notifyDataSetChanged();
 
-                            String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                            listAdapter.add("[" + currentDateTimeString + "] Saved the results");
-                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-                        }
-                    });
+                                String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
+                                listAdapter.add("[" + currentDateTimeString + "] Saved the results");
+                                messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                            }
+                        });
 
-                    builder.setNegativeButton("Discard", new DialogInterface.OnClickListener() {
+                        builder.setNegativeButton("Discard", new DialogInterface.OnClickListener() {
 
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
 
-                            // Do nothing
-                            ALPHandler.discardResults();
-                            dialog.dismiss();
-                            String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
+                                // Do nothing
+                                ALPHandler.discardResults();
+                                dialog.dismiss();
+                                String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
 
-                            listAdapter.add("[" + currentDateTimeString + "] Discarded the results");
-                            messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-                        }
-                    });
+                                listAdapter.add("[" + currentDateTimeString + "] Discarded the results");
+                                messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                            }
+                        });
 
-                    AlertDialog alert = builder.create();
-                    alert.show();
+                        AlertDialog alert = builder.create();
+                        alert.show();
 
-                } catch (UnsupportedEncodingException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    } catch (UnsupportedEncodingException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
                 }
+
 
             }
         });

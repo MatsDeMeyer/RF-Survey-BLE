@@ -14,6 +14,7 @@ public class SettingsActivity extends Activity {
     public static final String KEY_PREF_FILE_ID = "fileIDPreference";
     public static final String KEY_PREF_FILE_OFFSET = "offsetPreference";
     public static final String KEY_PREF_FILE_LENGTH = "fileLengthPreference";
+    public static final String KEY_PREF_QUERY_INTERVAL = "intervalPreference";
 
 
     @Override
