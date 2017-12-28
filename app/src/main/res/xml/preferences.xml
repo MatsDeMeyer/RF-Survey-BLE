@@ -35,4 +35,13 @@
         android:selectAllOnFocus="true"
         android:summary='The interval at which queries are sent in s (default "10")'
         android:title="Query interval" />
+    <SwitchPreference
+        android:defaultValue="true"
+        android:key="lpwanPreference"
+        android:summary="Choose which LPWAN to use (default dash7)"
+        android:summaryOff="Using LoRaWAN"
+        android:summaryOn="Using Dash7"
+        android:switchTextOff="LoRaWAN"
+        android:switchTextOn="Dash7"
+        android:title="LPWAN" />
 </PreferenceScreen>
