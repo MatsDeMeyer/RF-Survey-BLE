@@ -178,13 +178,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 for (Location location : locationResult.getLocations()) {
-                    // Update UI with location data
                     currentLocation = location;
-                    //Update the log with time stamp
-                    /*String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                    listAdapter.add("[" + currentDateTimeString + "] Location updated, lat: " + currentLocation.getLatitude() + " long: " + currentLocation.getLongitude());
-                    messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
-                    */
                 }
             };
         };
@@ -545,7 +539,10 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     protected void onStop() {
         Log.d(TAG, "onStop");
         super.onStop();
-        stopLocationUpdates();
+        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+            stopLocationUpdates();
+        }
     }
 
     @Override
@@ -572,7 +569,10 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
         }
-        startLocationUpdates();
+        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+            startLocationUpdates();
+        }
 
 
 
