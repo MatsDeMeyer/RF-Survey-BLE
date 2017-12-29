@@ -97,18 +97,20 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     private ListView messageListView;
     private ArrayAdapter<String> listAdapter;
     private Button btnConnectDisconnect, btnStart, btnStop, btnClear;
+    int LocpermissionCheck;
+    int StoragepermissionCheck;
     private FusedLocationProviderClient mFusedLocationClient;
     private LocationRequest mLocationRequest;
     private LocationCallback mLocationCallback;
     private int ALPDelay = 10000;
     public static Location currentLocation;
 
-    private byte[] BLEResponse = {};
+    private byte[] BLEResponse = new byte[0];
 
-    String accessProfile;
-    String fileID;
-    String fileOffset;
-    String fileLength;
+    int accessProfile;
+    int fileID;
+    int fileOffset;
+    int fileLength;
 
     public static boolean defaultParameters;
     public boolean running;
@@ -117,7 +119,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     // Create the Handler object (on the main thread by default)
     Handler PeriodicALP = new Handler();
     //alp handler class (generating, parsing, ...)
-    ALPHandler ALPHandler= new ALPHandler();
+    ALPHandler ALPHandler = new ALPHandler();
 
 
     @TargetApi(Build.VERSION_CODES.M)
@@ -128,19 +130,22 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
         //properly initialize the settings with default values
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
-        SharedPreferences sharedPref =
-                PreferenceManager.getDefaultSharedPreferences(this);
-        accessProfile = sharedPref.getString(SettingsActivity.KEY_PREF_ACCESS_PROFILE, "01");
-        fileID = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_ID, "00");
-        fileOffset = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_OFFSET, "00");
-        fileLength = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_LENGTH, "08");
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        accessProfile = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_ACCESS_PROFILE, "1"));
+        System.out.println("AP: " + accessProfile);
+        fileID = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_FILE_ID, "0"));
+        System.out.println("file id: " + fileID);
+        fileOffset = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_FILE_OFFSET, "0"));
+        System.out.println("file offset: " + fileOffset);
+        fileLength = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_FILE_LENGTH, "10"));
+        System.out.println("filelength: " + fileLength);
         ALPDelay = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_QUERY_INTERVAL, "10")) * 1000;
 
-        if((accessProfile + fileID + fileOffset + fileLength).equals("01000008"))
-        {
+        if ((accessProfile == 1 && fileID == 0 && fileOffset == 0 && fileLength == 8)) {
+            System.out.println("default params");
             defaultParameters = true;
-        }
-        else{
+        } else {
+            System.out.println("not default params");
             defaultParameters = false;
         }
 
@@ -150,27 +155,26 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             finish();
             return;
         }
-
-        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
-        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+        LocpermissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+        if (LocpermissionCheck != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
                 Toast.makeText(this, "The permission to get BLE and GPS location data is required", Toast.LENGTH_SHORT).show();
             } else {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, 1);
             }
-        } else {
+
+        }else{
             mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
             createLocationRequest();
         }
 
-        int permissionCheck2 = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        if (permissionCheck2 != PackageManager.PERMISSION_GRANTED) {
+        StoragepermissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if (StoragepermissionCheck != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
                 Toast.makeText(this, "External storage permission is required", Toast.LENGTH_SHORT).show();
             } else {
                 requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
             }
-        } else {
         }
 
 
@@ -180,7 +184,9 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                 for (Location location : locationResult.getLocations()) {
                     currentLocation = location;
                 }
-            };
+            }
+
+            ;
         };
 
         messageListView = (ListView) findViewById(R.id.listMessage);
@@ -188,7 +194,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         messageListView.setAdapter(listAdapter);
         messageListView.setDivider(null);
         btnConnectDisconnect = (Button) findViewById(R.id.btn_select);
-        btnClear = (Button)findViewById(R.id.clearButton);
+        btnClear = (Button) findViewById(R.id.clearButton);
         btnStart = (Button) findViewById(R.id.startButton);
         btnStop = (Button) findViewById(R.id.stopButton);
         btnStart.setEnabled(false);
@@ -199,21 +205,15 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         final Runnable PeriodicSurvey = new Runnable() {
             @Override
             public void run() {
-                //update the location using getLastLocation(), used for the response;
-               //updateLocation();
                 byte[] ALP = ALPHandler.GenerateALP(accessProfile, fileID, fileOffset, fileLength);
                 //send data to service
-                // Do something here on the main thread
                 mService.writeRXCharacteristic(ALP);
                 //Update the log with time stamp
                 String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                 listAdapter.add("[" + currentDateTimeString + "] Querying gateways");
                 messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
                 Log.d("Handlers", "Called on main thread");
-
                 PeriodicALP.postDelayed(this, ALPDelay);
-
-
             }
         };
 
@@ -248,37 +248,22 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(!running)
-                {
-                    final String message = "Start\r\n";
-                    final byte[] value;
-                    try {
-                        //send data to service
-                        value = message.getBytes("UTF-8");
-                        // Do something here on the main thread
-                        mService.writeRXCharacteristic(value);
+                if (!running) {
+
                         //Update the log with time stamp
                         String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                        if(defaultParameters)
+                        if (defaultParameters)
                             listAdapter.add("[" + currentDateTimeString + "] Starting the survey (default parameters)");
                         else
                             listAdapter.add("[" + currentDateTimeString + "] Starting the survey (AP,ID,Offset,Length: " + accessProfile + fileID + fileOffset + fileLength + ")");
                         messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
 
                         // Start the ALP runnable task by posting through the handler
+                        //startLocationUpdates();
                         PeriodicALP.post(PeriodicSurvey);
                         running = true;
 
-
-                        //
-                    } catch (UnsupportedEncodingException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-
-                }
-                else
-                {
+                } else {
                     String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                     listAdapter.add("[" + currentDateTimeString + "] Survey already running");
                     messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
@@ -291,17 +276,10 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         btnStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(running)
-                {
+                if (running) {
                     //stop the ALP commands
                     PeriodicALP.removeCallbacks(PeriodicSurvey);
                     running = false;
-                    String message = "Stop\r\n";
-                    byte[] value;
-                    try {
-                        //send data to service
-                        value = message.getBytes("UTF-8");
-                        mService.writeRXCharacteristic(value);
                         //Update the log with time stamp
                         String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                         listAdapter.add("[" + currentDateTimeString + "] Stopping the survey");
@@ -349,10 +327,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                         AlertDialog alert = builder.create();
                         alert.show();
 
-                    } catch (UnsupportedEncodingException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
+
                 }
 
 
@@ -372,11 +347,6 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
 
         // Set initial UI state
-
-
-        /*getSupportFragmentManager().beginTransaction()
-                .replace(android.R.id.content, new SettingsFragment())
-                .commit();*/
 
     }
 
@@ -459,17 +429,16 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             if (action.equals(UartService.ACTION_DATA_AVAILABLE)) {
 
                 final byte[] txValue = intent.getByteArrayExtra(UartService.EXTRA_DATA);
-                final String response = byteArrayToHexString(txValue);
                 runOnUiThread(new Runnable() {
                     public void run() {
                         try {
                             String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
-                            //listAdapter.add("[" + currentDateTimeString + "] RX: " + response);
-                            //messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
                             int count = listAdapter.getCount();
                             BLEResponse = concat(BLEResponse, txValue);
                             String ParseResult = ALPHandler.ParseALP(BLEResponse);
-                            if(!Objects.equals(ParseResult, "NOK")) {
+                            System.out.println("BLEResponse: " + byteArrayToHexString(BLEResponse));
+                            System.out.println("BLEResponseresult:" + ParseResult);
+                            if (!Objects.equals(ParseResult, "NOK")) {
                                 listAdapter.add("[" + currentDateTimeString + "] " + ParseResult);
                                 messageListView.smoothScrollToPosition(count - 1);
                                 BLEResponse = new byte[0];
@@ -490,11 +459,6 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
         }
     };
-
-
-
-
-
 
 
     private void service_init() {
@@ -539,10 +503,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     protected void onStop() {
         Log.d(TAG, "onStop");
         super.onStop();
-        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
-        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-            stopLocationUpdates();
-        }
+        stopLocationUpdates();
     }
 
     @Override
@@ -562,18 +523,13 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         super.onResume();
         //scroll to end of listview
         messageListView.setSelection(listAdapter.getCount() - 1);
-
+        startLocationUpdates();
         Log.d(TAG, "onResume");
         if (!mBtAdapter.isEnabled()) {
             Log.i(TAG, "onResume - BT not enabled yet");
             Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
         }
-        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
-        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-            startLocationUpdates();
-        }
-
 
 
     }
@@ -697,13 +653,12 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
     @SuppressLint("MissingPermission")
     private void startLocationUpdates() {
-        mFusedLocationClient.requestLocationUpdates(mLocationRequest,
-                mLocationCallback,
-                null /* Looper */);
+
+        mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, null /* Looper */);
     }
 
     private void stopLocationUpdates() {
-        mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+            mFusedLocationClient.removeLocationUpdates(mLocationCallback);
     }
 
     byte[] concat(byte[]...arrays)

@@ -2,28 +2,28 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <EditTextPreference
-        android:defaultValue='"01"'
+        android:defaultValue="1"
         android:key="accessProfilePreference"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:summary='Access profile in hex (default "01")'
         android:title="Access Profile" />
     <EditTextPreference
-        android:defaultValue='"00"'
+        android:defaultValue="0"
         android:key="fileIDPreference"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:summary='ID of the file to be queried in hex (default "00")'
         android:title="File ID" />
     <EditTextPreference
-        android:defaultValue='"00"'
+        android:defaultValue="0"
         android:key="offsetPreference"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:summary='The byte offset of the file in hex (default "00")'
         android:title="File Offset" />
     <EditTextPreference
-        android:defaultValue='"08"'
+        android:defaultValue="8"
         android:key="fileLengthPreference"
         android:selectAllOnFocus="true"
         android:singleLine="true"

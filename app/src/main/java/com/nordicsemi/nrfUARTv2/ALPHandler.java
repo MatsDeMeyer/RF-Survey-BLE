@@ -29,12 +29,15 @@ public class ALPHandler {
     List<Result> OkResults = new ArrayList<Result>();
     List<Result> NokResults = new ArrayList<Result>();
 
-    public byte[] GenerateALP(String accessProfile, String fileID, String fileOffset, String fileLength){
+    public byte[] GenerateALP(int accessProfile, int fileID, int fileOffset, int fileLength){
 
+        /*System.out.println("Accessprofilestring: " + accessProfile);
         byte accessProfileByte[] = hexStringToByteArray(accessProfile);
+        System.out.println("accessprofilebyte: " + accessProfileByte[0]);
+        System.out.println("accessprofilebytemoetzijn: " + (byte)0x01);
         byte fileIDByte[] = hexStringToByteArray(fileID);
         byte fileOffsetByte[] = hexStringToByteArray(fileOffset);
-        byte fileLengthByte[] = hexStringToByteArray(fileLength);
+        byte fileLengthByte[] = hexStringToByteArray(fileLength);*/
 
         //41 54 24 44 c0 00 0c b4 37 32 d7 01 00 10 01 01 00 00 08
 
@@ -73,11 +76,11 @@ public class ALPHandler {
                         (byte)0x01,
                         (byte)0x00,
                         (byte)0x10,
-                        accessProfileByte[0], //access class
+                (byte)accessProfile, //access class
                         (byte)0x01, //action (read)
-                        fileIDByte[0], //firmware file (uid)
-                        fileOffsetByte[0], //offset
-                        fileLengthByte[0]};//length
+                (byte)fileID, //firmware file (uid)
+                (byte)fileOffset, //offset
+                (byte)fileLength};//length
 
         command = concat(command, ALP);
 
@@ -100,7 +103,7 @@ public class ALPHandler {
             System.out.println("Ok Results: " + OkResults.toString());
             System.out.println("Nok Results: " + NokResults.toString());
 
-            return "No response";
+            return "No Gateways Responded";
         }
         else if(response[response.length - 2] == (byte)0xa3 && response[response.length - 3] == (byte)0x02 && response[response.length - 4] == (byte)0x00)
         {
