@@ -77,6 +77,7 @@ import java.text.DateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
+import java.util.Set;
 
 
 public class MainActivity extends Activity implements RadioGroup.OnCheckedChangeListener {
@@ -116,7 +117,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     public boolean running;
 
 
-    // Create the Handler object (on the main thread by default)
+    // Create the Handler object, runnable will be called on this handler
     Handler PeriodicALP = new Handler();
     //alp handler class (generating, parsing, ...)
     ALPHandler ALPHandler = new ALPHandler();
@@ -131,16 +132,25 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         //properly initialize the settings with default values
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-        accessProfile = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_ACCESS_PROFILE, "1"));
+
+        //parse hexstrings to INTS
+        String accessProfileString = sharedPref.getString(SettingsActivity.KEY_PREF_ACCESS_PROFILE, "01");
+        accessProfile = Integer.parseInt(accessProfileString, 16);
         System.out.println("AP: " + accessProfile);
-        fileID = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_FILE_ID, "0"));
+        String fileIDString = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_ID, "00");
+        fileID = Integer.parseInt(fileIDString, 16);
         System.out.println("file id: " + fileID);
-        fileOffset = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_FILE_OFFSET, "0"));
+        String fileOffsetString = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_OFFSET, "00");
+        fileOffset = Integer.parseInt(fileOffsetString, 16);
         System.out.println("file offset: " + fileOffset);
-        fileLength = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_FILE_LENGTH, "10"));
+        String fileLengthString = sharedPref.getString(SettingsActivity.KEY_PREF_FILE_LENGTH, "08");
+        fileLength = Integer.parseInt(fileLengthString, 16);
         System.out.println("filelength: " + fileLength);
+
+        //ALPDelay is not in hex, just parse int
         ALPDelay = Integer.parseInt(sharedPref.getString(SettingsActivity.KEY_PREF_QUERY_INTERVAL, "10")) * 1000;
 
+        //check if default parameters are chosen
         if ((accessProfile == 1 && fileID == 0 && fileOffset == 0 && fileLength == 8)) {
             System.out.println("default params");
             defaultParameters = true;
